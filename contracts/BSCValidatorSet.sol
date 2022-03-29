@@ -64,6 +64,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // only in state
     bool jailed;
+    //Number address coming 
     uint256 incoming;
   }
 
@@ -202,6 +203,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   function updateValidatorSet(Validator[] memory validatorSet) internal returns (uint32) {
     // do verify.
+    // bool, return error 
     (bool valid, string memory errMsg) = checkValidatorSet(validatorSet);
     if (!valid) {
       emit failReasonWithStr(errMsg);
@@ -236,7 +238,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       emit failReasonWithStr("fee is larger than DUSTY_INCOMING");
       return ERROR_RELAYFEE_TOO_LARGE;
     }
-    for (uint i = 0;i<currentValidatorSet.length;i++) {
+    for (uint i = 0; i<currentValidatorSet.length; i++) {
       if (currentValidatorSet[i].incoming >= DUSTY_INCOMING) {
         crossAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
         uint256 value = currentValidatorSet[i].incoming - currentValidatorSet[i].incoming % PRECISION;
@@ -255,7 +257,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     //step 2: do cross chain transfer
     bool failCross = false;
     if (crossTotal > 0) {
-      try ITokenHub(TOKEN_HUB_ADDR).batchTransferOutBNB{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, uint64(block.timestamp + expireTimeSecondGap)) returns (bool success) {
+      try ITokenHub(TOKEN_HUB_ADDR).batchTransferOutBNB
+      {value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, uint64(block.timestamp + expireTimeSecondGap)) returns (bool success) {
         if (success) {
            emit batchTransfer(crossTotal);
         } else {
@@ -397,12 +400,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
       }
     }
-    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
+      // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
   }
 
   /*********************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
+    // Check string need equal data (Compare key wirt memory)
     if (Memory.compareStrings(key, "expireTimeSecondGap")) {
+      // Check length of value equls 32 
       require(value.length == 32, "length of expireTimeSecondGap mismatch");
       uint256 newExpireTimeSecondGap = BytesToTypes.bytesToUint256(32, value);
       require(newExpireTimeSecondGap >=100 && newExpireTimeSecondGap <= 1e5, "the expireTimeSecondGap is out of range");
@@ -420,7 +425,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** Internal Functions **************************/
-
+  // Check address not same value in validatorSet address 
   function checkValidatorSet(Validator[] memory validatorSet) private pure returns(bool, string memory) {
     if (validatorSet.length > MAX_NUM_OF_VALIDATORS){
       return (false, "the number of validators exceed the limit");
@@ -439,7 +444,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint n = currentValidatorSet.length;
     uint m = validatorSet.length;
 
-    for (uint i = 0;i<n;i++) {
+    for (uint i = 0; i<n; i++) {
       bool stale = true;
       Validator memory oldValidator = currentValidatorSet[i];
       for (uint j = 0;j<m;j++) {
@@ -458,6 +463,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         currentValidatorSet.pop();
       }
     }
+
     uint k = n < m ? n:m;
     for (uint i = 0;i<k;i++) {
       if (!isSameValidator(validatorSet[i], currentValidatorSet[i])) {
@@ -481,6 +487,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   //rlp encode & decode function
   function decodeValidatorSetSynPackage(bytes memory msgBytes) internal pure returns (IbcValidatorSetPackage memory, bool) {
+    // New Struct IbcValidatorSetPackage 
     IbcValidatorSetPackage memory validatorSetPkg;
 
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
@@ -492,7 +499,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       } else if (idx == 1) {
         RLPDecode.RLPItem[] memory items = iter.next().toList();
         validatorSetPkg.validatorSet =new Validator[](items.length);
-        for (uint j = 0;j<items.length;j++) {
+        for (uint j = 0; j<items.length ;j++) {
           (Validator memory val, bool ok) = decodeValidator(items[j]);
           if (!ok) {
             return (validatorSetPkg, false);
